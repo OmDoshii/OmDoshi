@@ -107,6 +107,21 @@ function badRequest(message, origin) {
   });
 }
 
+export async function onRequestGet({ request, env }) {
+  const origin = new URL(request.url).origin;
+  return new Response(
+    JSON.stringify({
+      status: "ok",
+      message: "This endpoint accepts POST requests from the chat widget.",
+      groq_key_configured: Boolean(env.GROQ_API_KEY),
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders(origin) },
+    }
+  );
+}
+
 export async function onRequestOptions({ request }) {
   const origin = new URL(request.url).origin;
   return new Response(null, { status: 204, headers: corsHeaders(origin) });
