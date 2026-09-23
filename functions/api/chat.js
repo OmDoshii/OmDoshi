@@ -58,6 +58,29 @@ function corsHeaders(origin) {
   };
 }
 
+// Icon-only links (mailto/tel/social) have no visible text, so htmlToText's
+// tag-stripping below would otherwise erase them entirely — the AI would
+// have no way to know Om's email or socials even though they're on the page.
+// Pull them out as explicit plain-text lines first.
+function extractContactLinks(html) {
+  const patterns = [
+    { label: "Email", re: /href=["']mailto:([^"'?]+)/i },
+    { label: "Phone", re: /href=["']tel:([^"']+)/i },
+    { label: "LinkedIn", re: /href=["'](https?:\/\/(?:www\.)?linkedin\.com[^"']*)["']/i },
+    { label: "GitHub", re: /href=["'](https?:\/\/(?:www\.)?github\.com[^"']*)["']/i },
+    { label: "LeetCode", re: /href=["'](https?:\/\/(?:www\.)?leetcode\.com[^"']*)["']/i },
+    { label: "Instagram", re: /href=["'](https?:\/\/(?:www\.)?instagram\.com[^"']*)["']/i },
+    { label: "TUF", re: /href=["'](https?:\/\/(?:www\.)?takeuforward\.org[^"']*)["']/i },
+    { label: "Resume", re: /href=["'](https?:\/\/(?:www\.)?drive\.google\.com[^"']*)["']/i },
+  ];
+  const lines = [];
+  for (const { label, re } of patterns) {
+    const m = html.match(re);
+    if (m) lines.push(`${label}: ${m[1]}`);
+  }
+  return lines.length ? `Om's contact links (use these when asked how to reach him):\n${lines.join("\n")}\n` : "";
+}
+
 function htmlToText(html) {
   return html
     // drop non-content elements entirely
@@ -91,11 +114,12 @@ async function getPortfolioContext(env, request) {
   const origin = new URL(request.url).origin;
   const assetRes = await env.ASSETS.fetch(new URL("/", origin));
   const html = await assetRes.text();
+  const contactLines = extractContactLinks(html);
   const text = htmlToText(html);
 
   // Hard cap so a single request can never balloon token usage even if the
   // page grows a lot in the future.
-  cachedContext = text.slice(0, 12000);
+  cachedContext = (contactLines + text).slice(0, 12000);
   cachedAt = now;
   return cachedContext;
 }
